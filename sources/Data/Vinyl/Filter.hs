@@ -10,6 +10,10 @@ module Data.Vinyl.Filter (Filter, RFilter, rfilter) where
 
 import Data.Vinyl
 
+-- $setup 
+-- >>> import Data.Typeable (Proxy(..))
+-- >>> import Data.Vinyl.Functor
+
 
 -- | type-level 'filter'.
 type family Filter (t :: k) (xs :: [k]) :: [k] where
@@ -48,9 +52,8 @@ instance
 
 -- | 'rfilter' is a method. it filters 'HList's by type, not value.
 -- 
--- >>> import Data.Typeable (Proxy(..))
 -- >>> rfilter (Proxy :: Proxy ()) (Identity () :& Identity (1::Int) :& Identity () :& Identity True :& Identity () :& RNil)
--- {1; True}
+-- {1, True}
 -- 
 rfilter :: (RFilter t xs) => proxy t -> HList xs -> HList (Filter t xs)
 rfilter = _rfilter

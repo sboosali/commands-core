@@ -59,15 +59,16 @@ library
  exposed-modules:
   Commands.Etc
   Data.Vinyl.Prelude
+  Data.Vinyl.Filter
 
  -- modules included in this library, but not exported
  other-modules:
 
  -- other library packages from which modules are imported
  build-depends:
-  vinyl ==0.5.*,
+  vinyl         ==0.5.*,
 
-  base                     ==4.7.*
+  base          ==4.7.*
 
  -- base language which the package is written in
  default-language: Haskell2010
@@ -76,6 +77,25 @@ library
   -Wall
   -fno-warn-name-shadowing
 
+
+test-suite tests
+ main-is:        Tests.hs
+ hs-source-dirs: tests
+
+ -- cabal will say the tests pass only if `main-is` exits with zero
+ type: exitcode-stdio-1.0
+
+ default-language: Haskell2010
+ ghc-options:
+  -threaded
+
+ build-depends:
+  commands-core,
+
+  QuickCheck ==2.7.*,
+  doctest    ==0.9.*,
+
+  base       ==4.7.*
 
 
 -- http://haskell.org/cabal/users-guide/
