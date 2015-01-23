@@ -46,47 +46,36 @@ cabal-version:       >=1.10
 
 
 source-repository head
-  type:     git
-  location: https://github.com/sboosali/commands-core
+ type:     git
+ location: https://github.com/sboosali/commands-core
 
 
 library
 
-  -- directories with source files
-  hs-source-dirs: sources
+ -- directories with source files
+ hs-source-dirs: sources
 
-  -- modules exported by the library
-  exposed-modules:
+ -- modules exported by the library
+ exposed-modules:
+  Commands.Etc
+  Data.Vinyl.Prelude
 
-  -- modules included in this library, but not exported
-  other-modules:
+ -- modules included in this library, but not exported
+ other-modules:
 
-  -- other library packages from which modules are imported
-  build-depends:
-   base                     ==4.7.*
+ -- other library packages from which modules are imported
+ build-depends:
+  vinyl ==0.5.*,
 
-  -- base language which the package is written in
-  default-language: Haskell2010
+  base                     ==4.7.*
 
-  ghc-options:
-   -Wall
-   -fno-warn-name-shadowing
+ -- base language which the package is written in
+ default-language: Haskell2010
 
+ ghc-options:
+  -Wall
+  -fno-warn-name-shadowing
 
-test-suite tests
-  main-is:        Tests.hs
-  hs-source-dirs: tests
-
-  -- cabal will say the tests pass only if `main-is` exits with zero
-  type: exitcode-stdio-1.0
-
-  default-language: Haskell2010
-  ghc-options:
-
-  build-depends:
-   commands-core,
-
-   base ==4.7.*
 
 
 -- http://haskell.org/cabal/users-guide/
