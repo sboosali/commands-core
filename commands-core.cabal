@@ -58,13 +58,17 @@ library
  -- modules exported by the library
  exposed-modules:
   Commands.Etc
+  Commands.Instances
 
-  Commands.Grammar.Types
   Commands.Grammar
+  Commands.Grammar.Types
+
+  Commands.Parse
+  Commands.Parse.Types
+  Commands.Parsec
 
   Data.Vinyl.Prelude
   Data.Vinyl.Filter
-
 
  -- modules included in this library, but not exported
  other-modules:
