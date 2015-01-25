@@ -7,8 +7,6 @@ import Commands.Parse
 import Commands.Parsec (ParseError)
 
 import Control.Monad.Catch (catch)
-import Data.Vinyl
-import Data.Vinyl.Functor
 
 import Data.Typeable (Typeable)
 
@@ -22,16 +20,16 @@ data Command
  | Edit Action Region
  | Click Times Button
  | ReplaceWith Phrase Phrase
- | Undo ()
+ | Undo
  deriving (Show,Typeable)
 
 command :: Grammar Command
 command = 'command
- #= (\(Identity n :& Identity c :& RNil) -> Repeat n c) # positive & command & e
- #| (\(Identity e :& Identity r :& RNil) -> Edit e r) # action & region & e
- #| (\(Identity t :& Identity b :& RNil) -> Click t b) # times & button & "click" & e
- #| (\(Identity this :& Identity that :& RNil) -> ReplaceWith this that) # "replace" & phrase & "with" & phrase & e
- #| (\RNil -> Undo ()) # "undo" & e
+ #= Repeat      # positive  & command                    &e
+ #| Edit        # action    & region                     &e
+ #| Click       # times     & button  & "click"          &e
+ #| ReplaceWith # "replace" & phrase  & "with"  & phrase &e
+ #| Undo        # "undo"                                 &e
 
 data Action = Copy | Delete | Next deriving (Show,Typeable)
 
@@ -60,18 +58,22 @@ data Button = LeftButton | MiddleButton | RightButton deriving (Show,Typeable)
 
 button :: Grammar Button
 button = 'button
- #= con LeftButton
- #| con MiddleButton
- #| con RightButton
+ #= LeftButton # "left" &e
+ #| MiddleButton # "middle" &e
+ #| RightButton # "right" &e
 
 newtype Phrase = Phrase String deriving (Show,Typeable)
 
 phrase :: Grammar Phrase
 phrase = 'phrase
- #= const (Phrase "this") # "this" & e
- #| const (Phrase "that") # "that" & e
+ #= Phrase "this" # "this" &e
+ #| Phrase "that" # "that" &e
 
 
+-- | (we test the grammar with an executable, as we can't test grammar
+-- with doctest because of TemplateHaskell:
+-- "You can't use Template Haskell with a profiled compiler").
+-- 
 main :: IO ()
 main = do
  putStrLn ""
@@ -79,7 +81,7 @@ main = do
  putStrLn ""
  print =<< command `parsing` "Delete Word"
  print =<< command `parsing` "10 Next Word"
- print =<< command `parsing` "Double LeftButton click"
+ print =<< command `parsing` "Double left click"
  print =<< command `parsing` "replace this with that"
  print =<< command `parsing` "undo"
  -- print =<< command `parsing` "replace this and that with that and this"

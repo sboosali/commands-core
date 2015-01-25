@@ -69,6 +69,7 @@ library
 
   Data.Vinyl.Prelude
   Data.Vinyl.Filter
+  Data.Vinyl.Uncurry
 
   Commands.Plugins.Example
 

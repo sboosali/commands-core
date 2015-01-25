@@ -7,6 +7,7 @@ main = doctest
  , "sources/Commands/Instances"
  , "sources/Data/Vinyl/Filter"
  , "sources/Data/Vinyl/Prelude"
+ , "sources/Data/Vinyl/Uncurry"
  , "sources/Commands/Grammar/Types"
  , "sources/Commands/Grammar"
  , "sources/Commands/Parse/Types"

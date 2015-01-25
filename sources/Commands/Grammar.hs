@@ -28,6 +28,7 @@
 module Commands.Grammar where
 import Commands.Grammar.Types
 import Data.Vinyl.Prelude
+import Data.Vinyl.Uncurry
 
 import Data.Vinyl
 import Data.Monoid ((<>))
@@ -102,11 +103,11 @@ NonTerminal l rs #| r = NonTerminal l (rs <> [r])
 name #= r = NonTerminal (fromName name) [r]
 
 -- | sugar for 'RHS'.
-(#) :: forall a xs. (RFilter String xs)
-     => (HList (Filter String xs) -> a)
+(#) :: forall a xs. (RFilter String xs, Uncurry (Filter String xs))
+     => (Curried (HList (Filter String xs) -> a))
      -> Rec Grammar xs
      -> RHS a
-label # symbols = RHS label symbols
+label # symbols = RHS (uncurryN label) symbols
 
 -- | a partial function: only matches global names, i.e. @Name _
 -- ('NameG' _ _ _)@.
@@ -154,10 +155,10 @@ e = RNil
 
 -- | lifts a 'con'structor to a right-hand side.
 con :: (Show a) => a -> RHS a
-con c = const c # show c & e
+con c = c # show c & e
 
 -- | specialized 'con' for type inference: Haskell integer literals
--- are polymorphic: @0 :: (Integral a) => a@ not @0 :: Int@.
+-- are polymorphic: @0 :: (Integral a) => a@ not @0 :: Integer@.
 -- 
 -- 
 int :: Int -> RHS Int
