@@ -31,3 +31,11 @@ mapParser f = Parser . f . parsec
 
 -- |
 type RightContext = Some Parser
+
+-- | whether we are parsing at the root of a grammar.
+-- 
+-- a boolean with provenance (see
+-- <http://www.stephendiehl.com/what/#boolean-blindness Boolean Blindness>)
+-- 
+-- 
+type IsRoot = Maybe (Some Parsec)
