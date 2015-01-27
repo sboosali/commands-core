@@ -1,5 +1,6 @@
 {-# LANGUAGE GADTs, DeriveDataTypeable, ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell, ViewPatterns, TupleSections #-}
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 module Commands.Plugins.Example where
 import Commands.Grammar
 import Commands.Grammar.Types
@@ -31,28 +32,14 @@ command = 'command
  #| ReplaceWith # "replace" & phrase  & "with"  & phrase &e
  #| Undo        # "undo"                                 &e
 
-data Action = Copy | Delete | Next deriving (Show,Typeable)
+data Action = Copy | Delete | Next deriving (Show,Enum,Typeable)
+action = terminals :: Grammar Action
 
-action :: Grammar Action
-action = 'action
- #= con Copy
- #| con Delete
- #| con Next
+data Region = Char | Word | Line deriving (Show,Enum,Typeable)
+region = terminals :: Grammar Region
 
-data Region = Char | Word deriving (Show,Typeable)
-
-region :: Grammar Region
-region = 'region
- #= con Char
- #| con Word
-
-data Times = Single | Double | Triple deriving (Show,Typeable)
-
-times :: Grammar Times
-times = 'times
- #= con Single
- #| con Double
- #| con Triple
+data Times = Single | Double | Triple deriving (Show,Enum,Typeable)
+times = terminals :: Grammar Times
 
 data Button = LeftButton | MiddleButton | RightButton deriving (Show,Typeable)
 
@@ -79,9 +66,10 @@ main = do
  putStrLn ""
  (print =<< command `parsing` "unknown") `catch` (\(e :: ParseError) -> print e)
  putStrLn ""
- print =<< command `parsing` "Delete Word"
- print =<< command `parsing` "10 Next Word"
- print =<< command `parsing` "Double left click"
+ print =<< command `parsing` "delete word"
+ print =<< command `parsing` "10 next word"
+ print =<< command `parsing` "double left click"
  print =<< command `parsing` "replace this with that"
  print =<< command `parsing` "undo"
+ -- putStrLn ""
  -- print =<< command `parsing` "replace this and that with that and this"

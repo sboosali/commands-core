@@ -3,7 +3,17 @@
 {-# LANGUAGE FlexibleContexts, FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies, TypeFamilies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RecordWildCards #-}
 -- |
+-- 
+-- The two easy-to-use introductory functions for 'Grammar's are:
+-- 
+-- * 'Commands.Grammar.#=', whose 'LHS' uses a 'Name' from a
+-- __top-level binding__, which needs @TemplateHaskell@.
+-- * 'terminals', whose 'LHS' uses the 'TypeRep' of the
+-- __@data@type__, which needs @DeriveDataTypeable@.
+-- 
+-- See (the source of) "Commands.Plugins.Example" for examples.
 -- 
 -- The relative fixities of the syntactic sugar are:
 -- 
@@ -26,14 +36,17 @@
 -- 
 -- 
 module Commands.Grammar where
+import Commands.Etc
 import Commands.Grammar.Types
+import Commands.Munging (unCamelCase)
 import Data.Vinyl.Prelude
 import Data.Vinyl.Uncurry
 
 import Data.Vinyl
 import Data.Monoid ((<>))
+import Data.List (intercalate)
 
-import Data.Typeable (Typeable)
+import Data.Typeable (Typeable,Proxy(..))
 import Language.Haskell.TH.Syntax (Name(..),NameFlavour(NameG),OccName(..),PkgName(..),ModName(..))
 
 
@@ -43,7 +56,8 @@ infix  3 #=
 infixl 2 #|
 
 
--- | sugar for right-appending to 'RHS's.
+-- | sugar for right-appending a right hand side to a grammar.
+-- like a specialized  @snoc@.
 (#|) :: Grammar a -> RHS a -> Grammar a
 Terminal s #| _ = Terminal s
 NonTerminal l rs #| r = NonTerminal l (rs <> [r])
@@ -114,7 +128,7 @@ label # symbols = RHS (uncurryN label) symbols
 -- 
 -- should be injective, i.e. preserves uniqueness.
 fromName :: Name -> LHS
-fromName (Name (OccName occ) (NameG _ (PkgName pkg) (ModName mod))) = LHS occ mod pkg
+fromName (Name (OccName occ) (NameG _ (PkgName pkg) (ModName mod))) = LHS pkg mod occ
 
 -- | sugar for ':&'.
 -- 
@@ -154,12 +168,36 @@ e :: Rec Grammar '[]
 e = RNil
 
 -- | lifts a 'con'structor to a right-hand side.
+-- 
+-- e.g. @con LeftButton == LeftButton # "left button" &e@
+-- 
 con :: (Show a) => a -> RHS a
-con c = c # show c & e
+con c = c # (intercalate " " . unCamelCase . show) c &e
 
 -- | specialized 'con' for type inference: Haskell integer literals
--- are polymorphic: @0 :: (Integral a) => a@ not @0 :: Integer@.
+-- are polymorphic. e.g. @(0 :: (Integral a) => a)@
+-- is inferred from @0@, not @(0 :: Integer)@
 -- 
+-- @int = con@
 -- 
 int :: Int -> RHS Int
 int = con
+
+-- |
+-- 
+-- >>> :set -XDeriveDataTypeable
+-- >>> import Commands.Parse (parsing)
+-- >>> data Button = LeftButton | MiddleButton | RightButton deriving (Show,Enum,Typeable)
+-- >>> let button = terminals :: Grammar Button
+-- >>> button `parsing` "left button"
+-- LeftButton
+-- 
+-- with 'Enum' grammars, we can get the "edit only once" property:
+-- edit the @data@ definition, then 'terminals' builds the 'Grammar',
+-- and then the functions on 'Grammar's build the 'Parse'rs and
+-- 'Recognize'rs. without any TemplateHaskell.
+-- 
+terminals :: forall a. (Show a, Enum a, Typeable a) => Grammar a
+terminals = NonTerminal
+ (uncurry3 LHS . guiOf $ (Proxy :: Proxy a))
+ (map con constructors)

@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE BangPatterns #-}
 module Commands.Grammar.Types where
+import Commands.Etc
 import Data.Vinyl.Filter
 
 import Data.Vinyl
@@ -39,10 +40,7 @@ instance Eq (Grammar a) where
 -- uniqueness by using @Name@s, but only if we must provide them
 -- correctly.
 --
-data LHS        = LHS !Identifier !Module !Package deriving (Show, Eq, Ord)
-type Package    = String
-type Module     = String
-type Identifier = String
+data LHS        = LHS !Package !Module !Identifier deriving (Show, Eq, Ord)
 
 -- | A labeled right-hand side in a non-terminal.
 --
@@ -92,3 +90,4 @@ data RHS a where
      => (HList (Filter String xs) -> a)
      -> Rec Grammar xs
      -> RHS a
+

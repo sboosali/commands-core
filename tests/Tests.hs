@@ -13,4 +13,5 @@ main = doctest
  , "sources/Commands/Parse/Types"
  , "sources/Commands/Parse"
  , "sources/Commands/Parsec"
+ , "sources/Commands/Munging"
  ]
