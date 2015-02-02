@@ -10,29 +10,31 @@ import Data.Vinyl.Prelude
 
 import Data.Vinyl
 
-import Data.Typeable (Proxy(..))
+import Data.Typeable (Typeable,Proxy(..))
 import Control.Applicative
 import Data.Maybe (fromMaybe)
+import Data.Monoid (mempty)
 
 
 -- | __g__rammar parser
 -- 
---
-gparser :: IsRoot -> Grammar a -> SensitiveParser a
-gparser _      (Terminal s)       = SensitiveParser (\_ -> Parser $ word s)
-gparser isRoot (NonTerminal _ rs) = SensitiveParser (\x -> nparser isRoot x rs)
+-- build a 'SensitiveParser' from a 'Grammar'.
+gparser :: (Typeable a) => OverridingParsers -> IsRoot -> Grammar a -> SensitiveParser a
+gparser _  _        (Terminal s)       = SensitiveParser (\_ -> Parser $ word s)
+gparser ps isRoot g@(NonTerminal _ rs) = SensitiveParser (\x -> nparser ps isRoot x rs)
+ `fromMaybe` (g `overriddenBy` ps)
 
 -- | __n__on-terminal parser
 -- 
 -- calls 'try' on the 'Parser' induced by the right-hand-sides @[RHS
 -- a]@
 -- 
-nparser :: forall a. IsRoot -> RightContext -> [RHS a] -> Parser a
-nparser isRoot context rs = choice_ parsers
+nparser :: forall a. OverridingParsers -> IsRoot -> RightContext -> [RHS a] -> Parser a
+nparser ps isRoot context rs = choice_ parsers
  where
 
  parsers :: [Parser a]
- parsers = fmap (lparser isRoot context) rs
+ parsers = fmap (lparser ps isRoot context) rs
 
  choice_ :: [Parser a] -> Parser a
  choice_ = Parser . try . choice . fmap parsec
@@ -42,12 +44,12 @@ nparser isRoot context rs = choice_ parsers
 -- calls 'try' on the 'Parser' induced by the right-hand-side @RHS a@
 -- 
 -- 
-lparser :: forall a. IsRoot -> RightContext -> RHS a -> Parser a
-lparser isRoot context (RHS label grammars) = case fromMaybe (Some unitParser) isRoot of
+lparser :: forall a. OverridingParsers -> IsRoot -> RightContext -> RHS a -> Parser a
+lparser ps isRoot context (RHS label grammars) = case fromMaybe (Some unitParser) isRoot of
  -- uses case, not a pattern, because of this error: "I can't handle pattern bindings for existential or GADT data constructors."
  Some q -> Parser (inject <$> try (p <* q))
  where
- Parser p = rhoist (rparser isRoot context grammars)
+ Parser p = rhoist (rparser ps isRoot context grammars)
  inject = label . rfilter (Proxy :: Proxy String)
 
 -- | __r__ecord parser
@@ -92,8 +94,8 @@ lparser isRoot context (RHS label grammars) = case fromMaybe (Some unitParser) i
 -- expecting space or end of input
 -- 
 -- 
-rparser :: forall xs. IsRoot -> RightContext -> Rec Grammar xs -> Rec Parser xs
-rparser _ context grammars = freeParsers
+rparser :: forall xs. (All xs Typeable) => OverridingParsers -> IsRoot -> RightContext -> Rec Grammar xs -> Rec Parser xs
+rparser ps _ context grammars = freeParsers
  where
 
  freeParsers :: Rec Parser xs
@@ -104,17 +106,30 @@ rparser _ context grammars = freeParsers
  rscanr_ = rscanr
 
  sensitiveParsers :: Rec SensitiveParser xs
- sensitiveParsers = rmap (gparser Nothing) grammars
+ sensitiveParsers = rmap (\(Constrained x) -> gparser ps Nothing x) typeableGrammars
 
--- | the @grammar@ input is the root of that grammar which is being
+ typeableGrammars :: Rec (Constrained Typeable Grammar) xs
+ typeableGrammars = reifyConstraintU (Proxy :: Proxy Typeable) grammars
+
+-- |
+--  
+-- a specialized 'parsingWith', for testing simple grammars. passes:
+-- 
+-- * 'eof' as the 'IsRoot' to 'gparser'
+-- * 'eof' as the 'RightContext' to a 'SensitiveParser'
+-- * 'mempty' as the 'OverridingParsers'
+-- 
+-- 
+parsing :: (Typeable a) => Grammar a -> String -> Possibly a
+parsing = parsingWith mempty (Just . Some $ eof) (Some . Parser $ eof)
+
+-- |
+-- 
+-- the @grammar@ input is the root of that grammar which is being
 -- parsed.
 -- 
--- passes 'eof' as the 'IsRoot' to 'gparser', and 'eof' as the
--- 'RightContext' to a 'SensitiveParser'.
--- 
--- 
-parsing :: Grammar a -> String -> Possibly a
-parsing grammar s = parse fp s
+parsingWith :: (Typeable a) => OverridingParsers -> IsRoot -> RightContext -> Grammar a -> String -> Possibly a
+parsingWith overridden isRoot rightContext grammar s = parse fp s
  where
- Parser fp = sp (Some . Parser $ eof)
- SensitiveParser sp = gparser (Just . Some $ eof) grammar
+ Parser fp = sp rightContext
+ SensitiveParser sp = gparser overridden isRoot grammar

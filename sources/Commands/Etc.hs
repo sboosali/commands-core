@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, RankNTypes #-}
+{-# LANGUAGE ExistentialQuantification, RankNTypes, GADTs #-}
 module Commands.Etc where
 import Commands.Instances()
 
@@ -9,6 +9,14 @@ import Data.Typeable (Typeable,tyConPackage,tyConModule,tyConName,typeRepTyCon,t
 
 -- | existentially-quantify any unary type-constructor
 data Some f = forall x. Some (f x)
+
+-- | existentially-quantify any unary type-constructor, whose "type
+-- argument" is constrained to be Typeable, to gain back some of the
+-- info lost.
+-- 
+-- 
+data Exists f where
+ Exists :: forall f x. (Typeable x) => f x -> Exists f
 
 -- | generalized 'Maybe':
 -- 

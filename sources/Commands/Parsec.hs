@@ -47,7 +47,7 @@ parse p s = either throwM return $ Parsec.parse p s s
 -- 
 -- 
 manyUntil :: Parsec a -> Some Parsec -> Parsec [a]
-manyUntil p (Some q) = p `manyTill` (try . lookAhead) q
+manyUntil p (Some q) = (:) <$> p <*> p `manyTill` (try . lookAhead) q
 
 -- |
 -- 
@@ -98,7 +98,7 @@ spaced = between (many space) (many space)
 -- 
 -- shadows 'Parsec.space'. 
 space :: Parsec Char
-space = char ' ' <?> "space"
+space = char ' ' <?> "a space"
 
 -- | skips zero or more of:
 -- 

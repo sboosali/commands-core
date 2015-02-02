@@ -1,15 +1,19 @@
 {-# LANGUAGE GADTs, DeriveDataTypeable, ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell, ViewPatterns, TupleSections #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+-- | (this module's source should be read)
 module Commands.Plugins.Example where
+import Commands.Etc
 import Commands.Grammar
 import Commands.Grammar.Types
 import Commands.Parse
-import Commands.Parsec (ParseError)
+import Commands.Parse.Types
+import Commands.Parsec
 
 import Control.Monad.Catch (catch)
 
 import Data.Typeable (Typeable)
+import Control.Applicative ((<$>))
 
 
 -- | demonstrates that grammars are first-class
@@ -24,6 +28,13 @@ data Command
  | Undo
  deriving (Show,Typeable)
 
+-- | the root of our grammar (needs no annotation, and any grammar
+-- can serve as root, when passed to the parser-generator
+-- 'parsingWith').
+-- 
+-- note that it is directly self-referencing, safely terminating
+-- thanks to laziness.
+-- 
 command :: Grammar Command
 command = 'command
  #= Repeat      # positive  & command                    &e
@@ -32,6 +43,9 @@ command = 'command
  #| ReplaceWith # "replace" & phrase  & "with"  & phrase &e
  #| Undo        # "undo"                                 &e
 
+-- | we can derive an enumeration grammar with a single overloaded
+-- value: 'terminals'. this saves a lot of boilerplate, while
+-- preserving reuse and safety.
 data Action = Copy | Delete | Next deriving (Show,Enum,Typeable)
 action = terminals :: Grammar Action
 
@@ -48,13 +62,38 @@ button = 'button
  #= LeftButton # "left" &e
  #| MiddleButton # "middle" &e
  #| RightButton # "right" &e
+-- (NonEmpty String)
+newtype Dictation = Dictation [String] deriving (Show,Typeable)
 
-newtype Phrase = Phrase String deriving (Show,Typeable)
+-- | a "built-in" grammar with a context-sensitive parser
+-- 'parseDictation'. though any user can define it in two lines of code.
+dictation :: Grammar Dictation
+dictation = sink
 
-phrase :: Grammar Phrase
-phrase = 'phrase
- #= Phrase "this" # "this" &e
- #| Phrase "that" # "that" &e
+-- | it keeps parsing words until it could parse the context, at which
+-- point it doesn't parse the context and stops parsing words.
+-- 
+-- e.g. in 'command', the first dictation has a context of "with".
+parseDictation :: Some Parsec -> Parsec Dictation
+parseDictation context = Dictation <$> anyWord `manyUntil` context
+
+-- | here we say that we won't use the default automatically generated
+-- parser for the dictation grammar, but instead our own specialized one.
+overridingParsers = parseDictation `overrides` dictation
+
+-- | parser-generator specialized to our grammar.
+-- a simple convenience function.
+parses = parsingWith overridingParsers (Just . Some $ eof) (Some . Parser $ eof)
+
+type Phrase = Dictation
+phrase = dictation
+
+data Directions = Directions Phrase Phrase Phrase deriving (Show,Typeable)
+directions :: Grammar Directions
+directions = 'directions
+ #= Directions # "from" & phrase & "to" & phrase & "by" & phrase & e
+-- permute order of effects but not order of results! action-permutations
+-- and how do we group the prepositions?
 
 
 -- | (we test the grammar with an executable, as we can't test grammar
@@ -64,12 +103,14 @@ phrase = 'phrase
 main :: IO ()
 main = do
  putStrLn ""
- (print =<< command `parsing` "unknown") `catch` (\(e :: ParseError) -> print e)
+ (print =<< command `parses` "unknown") `catch` (\(e :: ParseError) -> print e)
  putStrLn ""
- print =<< command `parsing` "delete word"
- print =<< command `parsing` "10 next word"
- print =<< command `parsing` "double left click"
- print =<< command `parsing` "replace this with that"
- print =<< command `parsing` "undo"
- -- putStrLn ""
- -- print =<< command `parsing` "replace this and that with that and this"
+ (print =<< command `parses` "replace this no-with") `catch` (\(e :: ParseError) -> print e)
+ putStrLn ""
+ (print =<< command `parses` "replace with phrase-can't-have-zero-words") `catch` (\(e :: ParseError) -> print e)
+ putStrLn ""
+ print =<< command `parses` "delete word"
+ print =<< command `parses` "10 next word"
+ print =<< command `parses` "double left click"
+ print =<< command `parses` "replace this and that with that and this"
+ print =<< command `parses` "undo"

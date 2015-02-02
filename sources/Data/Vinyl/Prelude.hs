@@ -55,22 +55,34 @@ type family All (rs :: [u]) (c :: * -> Constraint) :: Constraint where
   All (r ': rs) c = (c r, All rs c)
 
 -- | like 'reifyConstraint', but the constraint is on the uninterpreted field
--- @r@, not the interpreted field @f r@.
+-- @r@, not the interpreted field @f r@. helps avoid unnecessary
+-- 'Identity' instances when working with 'HList's.
 reifyConstraintH
   :: All rs c
   => proxy c
   -> HList rs
-  -> Rec (Constrained c) rs
+  -> Rec (Dict c) rs
 reifyConstraintH proxy record =
   case record of
     RNil -> RNil
-    (Identity x :& xs) -> Constrained x :& reifyConstraintH proxy xs
+    (Identity x :& xs) -> Dict x :& reifyConstraintH proxy xs
 
 -- | like 'Dict', but the constraint is on the uninterpreted field
--- @r@, not the interpreted field @f r@. helps avoid unnecessary
--- 'Identity' instances when working with 'HList's.
-data Constrained c a where
- Constrained :: c a => a -> Constrained c a
+-- @a@, not the interpreted field @f a@. 
+data Constrained c f a where
+ Constrained :: c a => f a -> Constrained c f a
+
+-- | 
+reifyConstraintU
+  :: All rs c
+  => proxy c
+  -> Rec f rs
+  -> Rec (Constrained c f) rs
+reifyConstraintU proxy record =
+  case record of
+    RNil -> RNil
+    (x :& xs) -> Constrained x :& reifyConstraintU proxy xs
+
 
 -- | inverts @'reifyConstraint (Proxy :: Proxy c)' forall @c@.
 hideConstraint :: Rec (Dict c :. f) xs -> Rec f xs
@@ -90,7 +102,7 @@ hideConstraint = rmap (\(Compose (Dict x)) -> x)
 -- equivalent to 'scanr' on constrained homogeneous records:
 -- 
 -- >>> let homogeneous   xs z = init . scanr (+) z . recordToList $ xs
--- >>> let heterogeneous rs z = recordToList . rscanr (\(Constrained x) (Some (Const y)) -> Const (toInteger x + y)) (Some (Const z)) . reifyConstraintH (Proxy :: Proxy Integral) $ rs
+-- >>> let heterogeneous rs z = recordToList . rscanr (\(Dict x) (Some (Const y)) -> Const (toInteger x + y)) (Some (Const z)) . reifyConstraintH (Proxy :: Proxy Integral) $ rs
 -- >>> heterogeneous (Identity (4 :: Integer) :& Identity (3 :: Int) :& Identity (2 :: Word) :& RNil) 1
 -- [10,6,3]
 -- >>> homogeneous      (Const  4             :&    Const  3 :&            Const  2          :& RNil) 1

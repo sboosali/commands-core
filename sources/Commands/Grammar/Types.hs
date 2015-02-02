@@ -1,11 +1,16 @@
-{-# LANGUAGE GADTs, RankNTypes, ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs, RankNTypes, ExistentialQuantification, DeriveDataTypeable #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE BangPatterns #-}
 module Commands.Grammar.Types where
 import Commands.Etc
 import Data.Vinyl.Filter
+import Data.Vinyl.Prelude (All)
 
 import Data.Vinyl
+
+import Data.Function (on)
+import Data.Typeable (Typeable)
 
 
 -- | A <http://en.wikipedia.org/wiki/Formal_grammar#Formal_definition formal grammar>.
@@ -28,11 +33,20 @@ import Data.Vinyl
 data Grammar a where
  Terminal    :: !String -> Grammar String
  NonTerminal :: !LHS -> [RHS a] -> Grammar a
+ deriving (Typeable)
 
-instance Eq (Grammar a) where
- Terminal    x   == Terminal    y   = x == y
- NonTerminal x _ == NonTerminal y _ = x == y
- _               == _               = False
+instance Eq  (Some Grammar) where (==)    = (==)    `on` (\(Some g) -> lhs g)
+instance Ord (Some Grammar) where compare = compare `on` (\(Some g) -> lhs g)
+
+-- | The left-hand side of a 'NonTerminal' is its @show@n 'LHS', the
+-- "left-hand side" of a 'Terminal' is its token.
+-- 
+-- (I'm pretty sure the derived @show@ on a product of strings is
+-- injective).
+-- 
+lhs :: Grammar a -> String
+lhs (Terminal s)      = "Terminal " ++ s
+lhs (NonTerminal l _) = show l
 
 -- | The left-hand side of the non-terminal should be a globally
 -- unique identifier. We can implement this specification with Haskell
@@ -40,7 +54,7 @@ instance Eq (Grammar a) where
 -- uniqueness by using @Name@s, but only if we must provide them
 -- correctly.
 --
-data LHS        = LHS !Package !Module !Identifier deriving (Show, Eq, Ord)
+data LHS = LHS !Package !Module !Identifier deriving (Show, Eq, Ord)
 
 -- | A labeled right-hand side in a non-terminal.
 --
@@ -86,7 +100,7 @@ data LHS        = LHS !Package !Module !Identifier deriving (Show, Eq, Ord)
 -- Mutually-recursive with 'Grammar'.
 -- 
 data RHS a where
- RHS :: forall a xs. (RFilter String xs)
+ RHS :: forall a xs. (RFilter String xs, All xs Typeable)
      => (HList (Filter String xs) -> a)
      -> Rec Grammar xs
      -> RHS a

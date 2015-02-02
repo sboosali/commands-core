@@ -1,17 +1,17 @@
-{-# LANGUAGE DataKinds, KindSignatures, PolyKinds, TypeOperators, ConstraintKinds #-}
+{-# LANGUAGE DataKinds, TypeOperators, ConstraintKinds #-}
 {-# LANGUAGE GADTs, StandaloneDeriving, DeriveDataTypeable, ExistentialQuantification, RankNTypes, ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts, FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies, TypeFamilies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE RecordWildCards #-}
 -- |
 -- 
--- The two easy-to-use introductory functions for 'Grammar's are:
+-- The three easy-to-use introductory functions for 'Grammar's are:
 -- 
 -- * 'Commands.Grammar.#=', whose 'LHS' uses a 'Name' from a
 -- __top-level binding__, which needs @TemplateHaskell@.
 -- * 'terminals', whose 'LHS' uses the 'TypeRep' of the
 -- __@data@type__, which needs @DeriveDataTypeable@.
+-- * 'sink', whose @['RHS']@ is empty.
 -- 
 -- See (the source of) "Commands.Plugins.Example" for examples.
 -- 
@@ -113,22 +113,31 @@ NonTerminal l rs #| r = NonTerminal l (rs <> [r])
 -- can be sufficiently hacked. or something that implicitly reifies
 -- bindings.
 -- 
-(#=) :: Typeable a => Name -> RHS a -> Grammar a
+(#=) :: Name -> RHS a -> Grammar a
 name #= r = NonTerminal (fromName name) [r]
 
 -- | sugar for 'RHS'.
-(#) :: forall a xs. (RFilter String xs, Uncurry (Filter String xs))
+(#) :: forall a xs. (RFilter String xs, All xs Typeable, Uncurry (Filter String xs))
      => (Curried (HList (Filter String xs) -> a))
      -> Rec Grammar xs
      -> RHS a
 label # symbols = RHS (uncurryN label) symbols
 
--- | a partial function: only matches global names, i.e. @Name _
+-- | constructs an 'LHS' which is unique up to the given Haskell
+-- 'Name'. i.e. is injective.
+-- 
+-- a partial function: only matches global names, i.e. @Name _
 -- ('NameG' _ _ _)@.
 -- 
--- should be injective, i.e. preserves uniqueness.
+-- 
 fromName :: Name -> LHS
 fromName (Name (OccName occ) (NameG _ (PkgName pkg) (ModName mod))) = LHS pkg mod occ
+
+-- | constructs an 'LHS' which is unique up to the inferred type.
+-- 
+-- calls 'guiOf'.
+fromProxy :: Typeable a => proxy a -> LHS
+fromProxy = uncurry3 LHS . guiOf
 
 -- | sugar for ':&'.
 -- 
@@ -199,5 +208,13 @@ int = con
 -- 
 terminals :: forall a. (Show a, Enum a, Typeable a) => Grammar a
 terminals = NonTerminal
- (uncurry3 LHS . guiOf $ (Proxy :: Proxy a))
+ (fromProxy (Proxy :: Proxy a))
  (map con constructors)
+
+-- | easily construct a grammar with empty @['RHS']@. used for
+-- grammars with an overriding parser.
+-- (see 'Commands.Parse.overriddes').
+-- 
+-- a "sink" in the grammar graph.
+sink :: forall a. Typeable a => Grammar a
+sink = NonTerminal (fromProxy (Proxy :: Proxy a)) []

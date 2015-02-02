@@ -88,6 +88,7 @@ library
 
   template-haskell ==2.9.*,
   transformers     ==0.3.*,
+  containers       ==0.5.*,
   base             ==4.7.*
 
  -- base language which the package is written in
