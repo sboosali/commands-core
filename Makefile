@@ -8,7 +8,9 @@ CODE = sources # tests
 
 # # # # # # # # # # # # # # # # # # 
 
-all: test document check
+default: run
+
+all: test run document style
 
 configure:
 	cabal configure --enable-tests
@@ -26,8 +28,12 @@ document:
 	cabal haddock
 	open dist/doc/html/$(PACKAGE)/index.html
 
-check:
+style:
 	hlint --hint=HLint.hs  *.hs $(CODE)
+
+check:
+	cabal build --ghc-options="-fforce-recomp -fno-code"
+
 
 # # # # # # # # # # # # # # # # # # 
 
@@ -39,6 +45,6 @@ clean:
 fresh: clean
 	rm -fr dist
 
-.PHONY: default clean fresh all build test document check
+.PHONY: default clean fresh all build test document style check
 
 # # # # # # # # # # # # # # # # # # 
