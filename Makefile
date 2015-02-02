@@ -8,7 +8,7 @@ CODE = sources # tests
 
 # # # # # # # # # # # # # # # # # # 
 
-default: run
+default: check
 
 all: test run document style
 
@@ -17,6 +17,9 @@ configure:
 
 build: configure
 	cabal build
+
+run:
+	cabal run
 
 test: build
 	cabal test
@@ -36,8 +39,6 @@ check:
 
 
 # # # # # # # # # # # # # # # # # # 
-
-default: Haskell
 
 clean:
 	rm -f Main *.{o,hi,dyn_o,dyn_hi}

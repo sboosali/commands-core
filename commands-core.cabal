@@ -70,6 +70,8 @@ library
   Data.Vinyl.Prelude
   Data.Vinyl.Filter
 
+  Commands.Plugins.Example
+
  -- modules included in this library, but not exported
  other-modules:
 
@@ -110,6 +112,20 @@ test-suite tests
   doctest    ==0.9.*,
 
   base       ==4.7.*
+
+
+executable example
+ main-is:        Example.hs
+ hs-source-dirs: executables
+
+ default-language: Haskell2010
+ ghc-options:
+  -Wall
+  -fno-warn-name-shadowing
+
+ build-depends:
+  commands-core,
+  base ==4.7.*
 
 
 -- http://haskell.org/cabal/users-guide/
