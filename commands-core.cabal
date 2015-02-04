@@ -58,6 +58,13 @@ library
  -- modules exported by the library
  exposed-modules:
   Commands.Etc
+  Commands.Instances
+
+  Commands.Parse
+  Commands.Parse.Types
+  Commands.Parsec
+
+  Commands.Munging
   Commands.Plugins.Example
 
  -- modules included in this library, but not exported
@@ -65,8 +72,13 @@ library
 
  -- other library packages from which modules are imported
  build-depends:
+  parsec        ==3.1.*,
+  split         ==0.2.*,
   exceptions    ==0.6.*,
+  action-permutations ==0.0.*,
 
+  transformers  ==0.3.*,
+  containers    ==0.5.*,
   base          ==4.7.*
 
  -- base language which the package is written in
