@@ -1,6 +1,6 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ExistentialQuantification, RankNTypes #-}
 module Commands.Etc where
-
+import Commands.Instances  ()
 import Control.Monad.Catch (MonadThrow)
 
 
@@ -18,3 +18,16 @@ import Control.Monad.Catch (MonadThrow)
 --
 --
 type Possibly a = (MonadThrow m) => m a
+
+-- | existentially-quantify any unary type-constructor
+--
+--
+data Some f = forall x. Some (f x)
+
+-- | The constructors of a (zero-based) Enum.
+--
+-- >>> constructors :: [Bool]
+-- [False,True]
+--
+constructors :: (Enum a) => [a]
+constructors = enumFrom (toEnum 0)
