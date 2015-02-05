@@ -1,12 +1,14 @@
 {-# LANGUAGE RankNTypes #-}
 module Commands.Parse where
 import Commands.Etc
-import Commands.Munging     (unCamelCase)
+import Commands.Munging      (unCamelCase)
 import Commands.Parse.Types
 import Commands.Parsec
 import Control.Applicative
-import Data.Foldable        (asum)
-import Data.List            (intercalate)
+import Control.Concatenative (bi)
+import Data.Foldable         (asum)
+import Data.List             (intercalate)
+import Data.Monoid           (First (..))
 
 
 -- (&) = (<*>)
@@ -14,13 +16,16 @@ import Data.List            (intercalate)
 -- (#) = (<$>)
 
 terminal :: String -> SensitiveParser String
-terminal s = SensitiveParser $ \_ -> word s
+terminal = freely . word
 
 parses :: SensitiveParser a -> String -> Possibly a
-parses (SensitiveParser sp) = parse $ sp (Some eof)
+parses (SensitiveParser _ p) = parse $ p (Some eof)
+
+contextual :: Parsec x -> First Context
+contextual = First . Just . Some
 
 freely :: Parsec a -> SensitiveParser a
-freely = SensitiveParser . const
+freely = bi contextual const SensitiveParser
 
 con :: (Show a) => a -> SensitiveParser a
 con c = c <$ (terminal . intercalate " " . unCamelCase . show) c

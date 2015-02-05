@@ -7,27 +7,28 @@ import Commands.Parse.Types
 import Commands.Parsec
 import Control.Applicative
 import Control.Applicative.Permutation
-import Control.Monad.Catch             (catch)
+import Control.Exception               (assert)
+import Control.Exception.Lens          (catching, handler, handling)
+import Control.Monad.Catch             (catch, catches)
 import Data.Foldable                   (asum)
 import Data.List                       (intercalate)
 import Data.Monoid                     ((<>))
--- import Data.Traversable (traverse)
+import Data.Traversable                (traverse)
 
 
 data Command
- = ReplaceWith Dictation Dictation
- | Undo
+ = Undo
+ | ReplaceWith Dictation Dictation
  | Repeat Positive Command
  deriving (Show,Eq)
 command :: SensitiveParser Command
 command
- = ReplaceWith  <$> (terminal "replace" *> dictation) <*> (terminal "with" *> dictation)
- <|> Undo         <$  terminal "undo"
- <|> Repeat       <$> positive <*> command
+   = Undo         <$  terminal "undo"
+ <|> ReplaceWith  <$> (terminal "replace" *> dictation) <*> (terminal "with" *> dictation)
+ -- <|> Repeat       <$> positive <*> command
 
 data Test = Test Dictation Command deriving (Show,Eq)
 test = Test <$> dictation <*> command
-test' = Test <$> contextualize (decontextualize (terminal "replace")) dictation <*> command
 
 newtype Positive = Positive Int deriving (Show,Eq)
 positive :: SensitiveParser Positive
@@ -35,23 +36,19 @@ positive = Positive <$> (asum . map int) [1..9]
 
 newtype Dictation = Dictation [String] deriving (Show,Eq)
 dictation :: SensitiveParser Dictation
-dictation = SensitiveParser $ \context ->
- Dictation <$> anyWord `manyUntil` context
+dictation = SensitiveParser
+ (contextual anyWord)
+ (\context -> Dictation <$> anyWord `manyUntil` context)
 
-contextualize :: Parsec x -> SensitiveParser a -> SensitiveParser a
-contextualize context (SensitiveParser parser) = SensitiveParser $ \_ -> parser (Some context)
 
-decontextualize :: SensitiveParser a -> Parsec a
-decontextualize (SensitiveParser parser) = parser (Some parserZero)
 
 -- | context-sensitive grammars (like 'dictation') work (?) with 'atom'
-data Directions = Directions Dictation Dictation Dictation deriving (Show,Eq)
-directions :: SensitiveParser Directions
-directions = terminal "directions" *> (runPerms $ Directions
+data DirectionsS = DirectionsS Dictation Dictation Dictation deriving (Show,Eq)
+directionsS :: SensitiveParser DirectionsS
+directionsS = terminal "directions" *> (runPerms $ DirectionsS
  <$> atom (terminal "from" *> dictation)
  <*> atom (terminal "to"   *> dictation)
  <*> atom (terminal "by"   *> dictation))
-
 
 data Place = Place String deriving (Show,Eq)
 place :: SensitiveParser Place
@@ -63,8 +60,8 @@ transport = twig
 
 -- | context-free grammars (like from 'twig' or 'anyWord') can use 'maybeAtom'
 data DirectionsF = DirectionsF (Maybe Place) (Maybe Place) (Maybe Transport) deriving (Show,Eq)
-directions' :: SensitiveParser DirectionsF
-directions' = terminal "directions" *> (runPerms $ DirectionsF
+directionsF :: SensitiveParser DirectionsF
+directionsF = terminal "directions" *> (runPerms $ DirectionsF
  <$> maybeAtom (terminal "from" *> place)
  <*> maybeAtom (terminal "to"   *> place)
  <*> maybeAtom (terminal "by"   *> transport))
@@ -79,7 +76,7 @@ exampleDirections =
  , "directions by bike   to there  from here"
  ]
 
-goodDirections  = Directions  (Dictation ["here"])  (Dictation ["there"])  (Dictation ["bike"])
+goodDirections  = DirectionsS  (Dictation ["here"])  (Dictation ["there"])  (Dictation ["bike"])
 goodDirectionsF = DirectionsF (Just (Place "here")) (Just (Place "there")) (Just Bike)
 
 powerset :: [a] -> [[a]]
@@ -100,23 +97,42 @@ outputDirectionsF =
  ]
 
 
+handleParse action = (print =<< action) `catches`
+ [ handler _ParseError print
+ ]
+
+-- |
+-- catching :: MonadCatch m => Getting (First a) SomeException a          -> m r   -> (a -> m r)            -> m r
+-- catching :: MonadCatch m =>            Prism' SomeException a          -> m r   -> (a -> m r)            -> m r
+-- catching ::                            Prism' SomeException ParseError -> IO () -> (ParseError -> IO ()) -> IO ()
+main :: IO ()
 main = do
+
  putStrLn ""
- (print =<< command `parses` "unknown-command") `catch` (\(e :: ParseError) -> print e)
+ --   handling ERROR with HANDLER run ACTION
+ handleParse (command `parses` "unknown-command")
  putStrLn ""
- (print =<< command `parses` "replace this no-with") `catch` (\(e :: ParseError) -> print e)
+ handling _ParseError print (print =<< command `parses` "replace this no-with")
  putStrLn ""
  (print =<< command `parses` "replace with dictation-can't-have-zero-words") `catch` (\(e :: ParseError) -> print e)
+
  putStrLn ""
- print . all (== Just (goodDirectionsF)) . map (directions' `parses`) $ exampleDirections
- print $ outputDirectionsF == ((directions' `parses`) =<< inputDirectionsF)
+ putStrLn "free directions: "
+ print . all (== Just (goodDirectionsF)) . map (directionsF `parses`) $ exampleDirections
+ putStrLn "free directions: "
+ print $ outputDirectionsF == ((directionsF `parses`) =<< inputDirectionsF)
+ putStrLn "sensitive directions: "
+ print . all (== (Just goodDirections))  . map (directionsS `parses`) $ exampleDirections
+ _ <- traverse print $ map ((directionsS `parses`) :: String -> Maybe DirectionsS) exampleDirections
+ putStrLn "multiword sensitive directions: "
+ print =<< directionsS `parses` "directions to San Francisco from Redwood City by the bike"
+
  putStrLn ""
- print . all (== (Just goodDirections))  . map (directions `parses`)  $ exampleDirections
- print =<< directions `parses` "directions to San Francisco from Redwood City by the bike"
- putStrLn ""
- print =<< command `parses` "replace this and that with that and this"
- print =<< command `parses` "undo"
- print =<< command `parses` "3 undo"
- -- print =<< command `parses` "test test 3 undo"
+ print =<< test `parses` "test test undo"
  print =<< test `parses` "test test replace this and that with that and this"
- print =<< test' `parses` "test test replace this and that with that and this"
+
+ putStrLn ""
+ print =<< command `parses` "undo"
+ print =<< command `parses` "replace this and that with that and this"
+
+ print =<< command `parses` "3 undo"

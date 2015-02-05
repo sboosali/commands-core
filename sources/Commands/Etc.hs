@@ -1,7 +1,10 @@
 {-# LANGUAGE ExistentialQuantification, RankNTypes #-}
 module Commands.Etc where
 import Commands.Instances  ()
-import Control.Monad.Catch (MonadThrow)
+import Control.Lens        (Prism', prism)
+import Control.Monad.Catch (MonadThrow, SomeException (..))
+import Data.Typeable       (cast)
+import Text.Parsec         (ParseError)
 
 
 -- | generalized 'Maybe':
@@ -31,3 +34,10 @@ data Some f = forall x. Some (f x)
 --
 constructors :: (Enum a) => [a]
 constructors = enumFrom (toEnum 0)
+
+_ParseError :: Prism' SomeException ParseError
+_ParseError = prism SomeException $ \(SomeException e) ->
+ case cast e of
+  Nothing -> Left (SomeException e)
+  Just a  -> Right a
+
