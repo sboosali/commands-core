@@ -1,13 +1,13 @@
 {-# LANGUAGE DeriveFunctor, TemplateHaskell #-}
 module Commands.Mixins.DNS13OSX9.Types where
 import Commands.Grammar.Types
-import Commands.Parse.Types
 import Commands.Mixins.DNS13.Types
 import Commands.Backends.OSX.Types
+import Commands.Parsers.Earley.Types
 
 
-type C = Command Parser DNSReifying ApplicationDesugarer
+type C = Command EarleyParser DNSReifying ApplicationDesugarer
 
-type G = Grammar Parser DNSReifying
+type G = Grammar EarleyParser DNSReifying
 
-type R = RHS     Parser DNSReifying
+type R = RHS     EarleyParser DNSReifying

@@ -115,9 +115,11 @@ type RHS p r = Alter (Symbol p r)
 
 data Symbol p r a = Terminal String | NonTerminal (Grammar p r a) deriving Functor
 
+-- |  lift a 'nont'erminal into an RHS
 nont :: Grammar p r a -> RHS p r a
 nont = liftAlter . NonTerminal
 
+-- |  lift a 'term'inal into an RHS
 term :: String -> RHS p r a
 term = liftAlter . Terminal
 

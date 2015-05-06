@@ -62,9 +62,8 @@ library
   Commands.Grammar
   Commands.Grammar.Types
 
-  Commands.Parse
-  Commands.Parse.Types
-  Commands.Parsec
+  Commands.Parsers.Earley
+  Commands.Parsers.Earley.Types
 
   Commands.Frontends.Dragon13
   Commands.Frontends.Dragon13.Types
